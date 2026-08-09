@@ -2,11 +2,14 @@ import QRCode from 'qrcode';
 import { LTEncoder } from './lt.js';
 import { encodePacket, PTYPE_LT, PTYPE_SYSTEMATIC } from './packet.js';
 
+// Block sizes are capped by what a filmed screen reliably decodes:
+// beyond ~QR v25 the modules get too small for phone cameras. XL uses
+// ECC level M — denser codes need the extra error margin on screens.
 export const DENSITIES = {
-    s: { blockSize: 96, width: 640 },
-    m: { blockSize: 220, width: 640 },
-    l: { blockSize: 420, width: 720 },
-    xl: { blockSize: 1000, width: 840 },
+    s: { blockSize: 96, width: 640, ecc: 'L' },
+    m: { blockSize: 220, width: 640, ecc: 'L' },
+    l: { blockSize: 420, width: 720, ecc: 'L' },
+    xl: { blockSize: 600, width: 900, ecc: 'M' },
 };
 
 export const REDUNDANCY = 1.5;
@@ -23,12 +26,13 @@ export function estimateTransfer(byteLength, densityKey, fps) {
 // one systematic pass first (fast path for a steady camera), then LT
 // packets with periodic systematic re-emissions to patch missed frames.
 export class Broadcaster {
-    constructor(canvas, payload, { blockSize = 220, fps = 8, width = 640 } = {}) {
+    constructor(canvas, payload, { blockSize = 220, fps = 8, width = 640, ecc = 'L' } = {}) {
         this.canvas = canvas;
         this.encoder = new LTEncoder(payload, blockSize);
         this.blockSize = blockSize;
         this.fps = fps;
         this.width = width;
+        this.ecc = ecc;
         this.transferId = crypto.getRandomValues(new Uint32Array(1))[0];
         this.seedBase = crypto.getRandomValues(new Uint32Array(1))[0];
         this.frameNo = 0;
@@ -85,7 +89,7 @@ export class Broadcaster {
         this.rendering = true;
         try {
             await QRCode.toCanvas(this.buffer, this.nextPacket(), {
-                errorCorrectionLevel: 'L',
+                errorCorrectionLevel: this.ecc,
                 margin: 2,
                 width: this.width,
             });

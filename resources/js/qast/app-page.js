@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { deflate, deflateSync, inflateSync } from 'fflate';
 import { Broadcaster, renderStaticQr, DENSITIES, estimateTransfer } from './sender.js';
 import { Scanner } from './receiver.js';
 import { LTDecoder } from './lt.js';
@@ -28,6 +29,9 @@ export function initAppPage() {
         type: 'file',
         file: null,
         fileBytes: null,
+        fileOpt: null,
+        fileDeflated: null,
+        useOptimized: true,
         broadcaster: null,
         stagePayload: null,
         scanner: null,
@@ -106,17 +110,102 @@ export function initAppPage() {
         state.wakeLock = null;
     }
 
+    /* ---------- Optimisation avant envoi ---------- */
+
+    function isAnimatedGif(bytes) {
+        let controls = 0;
+        for (let i = 0; i < bytes.length - 1; i++) {
+            if (bytes[i] === 0x21 && bytes[i + 1] === 0xf9 && ++controls > 1) return true;
+        }
+        return false;
+    }
+
+    // Re-encode images to WebP (JPEG fallback), capped at 1280px: the
+    // decisive lever on transfer time, entirely in-browser.
+    async function optimizeImage(file) {
+        if (!(file.type || '').startsWith('image/') || file.type === 'image/svg+xml') return null;
+
+        try {
+            const bitmap = await createImageBitmap(file);
+            const maxSide = 1280;
+            const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+            const width = Math.round(bitmap.width * scale);
+            const height = Math.round(bitmap.height * scale);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+            bitmap.close();
+
+            let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.8));
+            if (!blob || blob.type !== 'image/webp') {
+                blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+            }
+            if (!blob || blob.size >= file.size * 0.9) return null;
+
+            return {
+                bytes: new Uint8Array(await blob.arrayBuffer()),
+                mime: blob.type,
+                name: file.name.replace(/\.[^.]+$/, '') + (blob.type === 'image/webp' ? '.webp' : '.jpg'),
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    function deflateAsync(bytes) {
+        return new Promise((resolve) => {
+            deflate(bytes, { level: 6 }, (error, out) => resolve(error ? null : out));
+        });
+    }
+
+    function keepDeflated(original, deflated) {
+        return deflated && deflated.length < original.length * 0.95 ? deflated : null;
+    }
+
+    const textDeflateCache = { raw: null, out: null };
+
+    function deflatedText(raw, bytes) {
+        if (bytes.length < 2048) return null;
+        if (textDeflateCache.raw !== raw) {
+            textDeflateCache.raw = raw;
+            try {
+                textDeflateCache.out = keepDeflated(bytes, deflateSync(bytes, { level: 6 }));
+            } catch {
+                textDeflateCache.out = null;
+            }
+        }
+        return textDeflateCache.out;
+    }
+
     /* ---------- Contenu émetteur ---------- */
 
     function currentContent() {
         if (state.type === 'file') {
             if (!state.file || !state.fileBytes) return null;
             const isImage = (state.file.type || '').startsWith('image/');
-            return {
-                meta: { t: isImage ? 'image' : 'file', n: state.file.name, m: state.file.type || 'application/octet-stream' },
-                bytes: state.fileBytes,
-                raw: null,
-            };
+            const meta = { t: isImage ? 'image' : 'file', n: state.file.name, m: state.file.type || 'application/octet-stream' };
+
+            if (isImage && state.fileOpt && state.useOptimized) {
+                return {
+                    meta: { ...meta, n: state.fileOpt.name, m: state.fileOpt.mime },
+                    bytes: state.fileOpt.bytes,
+                    raw: null,
+                    originalSize: state.fileBytes.length,
+                };
+            }
+
+            if (state.fileDeflated) {
+                return {
+                    meta: { ...meta, c: 1 },
+                    bytes: state.fileDeflated,
+                    raw: null,
+                    originalSize: state.fileBytes.length,
+                };
+            }
+
+            return { meta, bytes: state.fileBytes, raw: null };
         }
 
         if (state.type === 'link') {
@@ -127,11 +216,18 @@ export function initAppPage() {
 
         const raw = (state.type === 'md' ? $('input-md') : $('input-text')).value;
         if (!raw.trim()) return null;
-        return { meta: { t: state.type }, bytes: encoder.encode(raw), raw };
+
+        const bytes = encoder.encode(raw);
+        const deflated = deflatedText(raw, bytes);
+        if (deflated) {
+            return { meta: { t: state.type, c: 1 }, bytes: deflated, raw, originalSize: bytes.length };
+        }
+
+        return { meta: { t: state.type }, bytes, raw };
     }
 
     function fitsSingleQr(content) {
-        if (!content || !content.raw) return false;
+        if (!content || !content.raw || content.meta.c) return false;
         if (content.meta.t === 'link') return content.raw.length <= SINGLE_QR_LINK_MAX;
         return content.bytes.length <= SINGLE_QR_TEXT_MAX;
     }
@@ -172,7 +268,9 @@ export function initAppPage() {
         }
 
         const size = content.bytes.length;
-        $('gauge-size').textContent = fmtBytes(size);
+        $('gauge-size').textContent = content.originalSize
+            ? `${fmtBytes(size)} (au lieu de ${fmtBytes(content.originalSize)})`
+            : fmtBytes(size);
         fill.style.width = `${Math.min(100, (size / SOFT_LIMIT) * 100)}%`;
         fill.classList.toggle('is-warn', size > SOFT_LIMIT);
 
@@ -236,20 +334,69 @@ export function initAppPage() {
 
     /* ---------- Fichier ---------- */
 
+    function refreshFileOptUi() {
+        const optZone = $('file-opt');
+        const isImage = state.file && (state.file.type || '').startsWith('image/');
+
+        if (isImage && state.fileOpt) {
+            const saved = `${fmtBytes(state.fileOpt.bytes.length)} au lieu de ${fmtBytes(state.fileBytes.length)}`;
+            const gifNote = state.file.type === 'image/gif' && isAnimatedGif(state.fileBytes) ? ' · animation perdue' : '';
+            $('file-opt-label').textContent = state.useOptimized
+                ? `Optimisée : ${saved}${gifNote}`
+                : `Version originale envoyée (optimisable : ${saved}${gifNote})`;
+            $('file-opt-toggle').textContent = state.useOptimized ? 'Garder l\'original' : 'Utiliser l\'optimisée';
+            optZone.hidden = false;
+        } else if (state.fileDeflated) {
+            $('file-opt-label').textContent = `Compressé sans perte : ${fmtBytes(state.fileDeflated.length)} au lieu de ${fmtBytes(state.fileBytes.length)}`;
+            $('file-opt-toggle').textContent = '';
+            $('file-opt-toggle').hidden = true;
+            optZone.hidden = false;
+        } else {
+            optZone.hidden = true;
+        }
+    }
+
     async function acceptFile(file) {
         if (!file) return;
-        if (file.size > HARD_LIMIT) {
+        const isImage = (file.type || '').startsWith('image/');
+        if (file.size > HARD_LIMIT && !isImage) {
             toast(`Trop lourd : ${fmtBytes(file.size)} (max ${fmtBytes(HARD_LIMIT)})`);
             return;
         }
+
         state.file = file;
         state.fileBytes = new Uint8Array(await file.arrayBuffer());
+        state.fileOpt = null;
+        state.fileDeflated = null;
+        state.useOptimized = true;
         $('file-name').textContent = file.name;
         $('file-size').textContent = `${fmtBytes(file.size)} · ${file.type || 'type inconnu'}`;
+        $('file-opt-label').textContent = 'optimisation…';
+        $('file-opt-toggle').hidden = true;
+        $('file-opt').hidden = false;
         $('file-card').hidden = false;
         $('dropzone').hidden = true;
         refreshGauge();
+
+        const current = file;
+        const [optimized, deflated] = await Promise.all([
+            optimizeImage(file),
+            isImage ? null : deflateAsync(state.fileBytes),
+        ]);
+        if (state.file !== current) return;
+
+        state.fileOpt = optimized;
+        state.fileDeflated = deflated ? keepDeflated(state.fileBytes, deflated) : null;
+        $('file-opt-toggle').hidden = !optimized;
+        refreshFileOptUi();
+        refreshGauge();
     }
+
+    $('file-opt-toggle').addEventListener('click', () => {
+        state.useOptimized = !state.useOptimized;
+        refreshFileOptUi();
+        refreshGauge();
+    });
 
     const dropzone = $('dropzone');
     dropzone.addEventListener('click', () => $('file-input').click());
@@ -273,6 +420,8 @@ export function initAppPage() {
     $('file-remove').addEventListener('click', () => {
         state.file = null;
         state.fileBytes = null;
+        state.fileOpt = null;
+        state.fileDeflated = null;
         $('file-input').value = '';
         $('file-card').hidden = true;
         $('dropzone').hidden = false;
@@ -317,11 +466,12 @@ export function initAppPage() {
             $('stage-density').value = densityKey;
             toast('Fichier volumineux : densité augmentée automatiquement');
         }
-        const { blockSize, width } = DENSITIES[densityKey];
+        const { blockSize, width, ecc } = DENSITIES[densityKey];
         state.broadcaster = new Broadcaster($('stage-canvas'), payloadBytes, {
             blockSize,
             fps: settings.fps,
             width,
+            ecc,
         });
         state.broadcaster.start();
         $('stage-mode').textContent = 'QR animés';
@@ -625,6 +775,16 @@ export function initAppPage() {
         state.scanner?.stop();
         releaseWakeLock();
         celebrate();
+
+        if (meta.c) {
+            try {
+                contentBytes = inflateSync(contentBytes);
+            } catch {
+                toast('Contenu compressé illisible — réessaie');
+                resetReception();
+                return;
+            }
+        }
 
         if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
         state.resultUrl = null;

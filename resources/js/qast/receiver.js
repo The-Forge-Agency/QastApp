@@ -117,7 +117,7 @@ export class Scanner {
         const videoHeight = this.video.videoHeight;
         if (!videoWidth || !videoHeight) return null;
 
-        const scale = Math.min(1, 800 / videoWidth);
+        const scale = Math.min(1, 1000 / videoWidth);
         const width = Math.round(videoWidth * scale);
         const height = Math.round(videoHeight * scale);
 

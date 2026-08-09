@@ -50,6 +50,10 @@
                         <div class="flex-1 min-w-0">
                             <p id="file-name" class="font-semibold text-sm truncate"></p>
                             <p id="file-size" class="muted text-xs mono mt-0.5"></p>
+                            <div id="file-opt" class="mt-2 flex items-center gap-2 flex-wrap" hidden>
+                                <span id="file-opt-label" class="text-xs" style="color: var(--ok);"></span>
+                                <button id="file-opt-toggle" class="btn btn-ghost btn-sm" style="padding: 4px 10px; font-size: 12px;">Garder l'original</button>
+                            </div>
                         </div>
                         <button class="btn btn-ghost btn-sm" id="file-remove" aria-label="Retirer le fichier">Retirer</button>
                     </div>
@@ -107,8 +111,8 @@
                 <summary class="text-sm font-semibold cursor-pointer" style="color: var(--accent);">Formats acceptés &amp; limites</summary>
                 <div class="mt-3 text-sm muted leading-relaxed">
                     <p><strong style="color: var(--ink);">Fichier</strong> — tous les formats sans exception : image (jpg, png, webp, gif, svg…), PDF, zip, audio, texte, binaire… Limite dure : <span class="mono">25 Mo</span> (compte ~20 min en Turbo). Idéal : <span class="mono">&lt; 100 Ko</span> pour un transfert en quelques secondes.</p>
-                    <p class="mt-2"><strong style="color: var(--ink);">Image</strong> — détectée automatiquement, aperçu miniature à la réception. Pense à compresser ou réduire avant d'envoyer une photo.</p>
-                    <p class="mt-2"><strong style="color: var(--ink);">Texte &amp; Markdown</strong> — jusqu'à 25 Mo. Sous ~700 caractères, un seul QR statique suffit : scannable par n'importe quelle appli caméra.</p>
+                    <p class="mt-2"><strong style="color: var(--ink);">Image</strong> — optimisée automatiquement avant envoi (WebP, max 1280px) : une photo de plusieurs Mo tombe souvent sous 300 Ko, soit quelques secondes de transfert. Un bouton permet de garder l'original ; un GIF animé optimisé perd son animation (c'est indiqué).</p>
+                    <p class="mt-2"><strong style="color: var(--ink);">Texte &amp; Markdown</strong> — jusqu'à 25 Mo, compressés sans perte automatiquement (décompressés à la réception). Sous ~700 caractères, un seul QR statique suffit : scannable par n'importe quelle appli caméra.</p>
                     <p class="mt-2"><strong style="color: var(--ink);">Lien</strong> — toute URL http(s) jusqu'à 1 200 caractères, toujours en QR statique instantané.</p>
                     <p class="mt-2"><strong style="color: var(--ink);">Débit &amp; réglages</strong> — un écran filmé transporte d'environ <span class="mono">1 Ko/s</span> (S, 8 i/s) à <span class="mono">~20 Ko/s</span> (XL, 30 i/s). Pour un gros fichier : densité XL, vitesse au max, plein écran, écrans nets et stables, caméra bien cadrée. La jauge ci-dessus affiche poids et durée estimée avec tes réglages. Les frames ratées ne coûtent rien : les fountain codes les rattrapent.</p>
                 </div>
