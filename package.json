@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test:js": "node --test tests/js/engine.test.mjs"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
@@ -12,5 +13,11 @@
         "laravel-vite-plugin": "^3.1",
         "tailwindcss": "^4.0.0",
         "vite": "^8.0.0"
+    },
+    "dependencies": {
+        "dompurify": "^3.4.13",
+        "jsqr": "^1.4.0",
+        "marked": "^18.0.9",
+        "qrcode": "^1.5.4"
     }
 }

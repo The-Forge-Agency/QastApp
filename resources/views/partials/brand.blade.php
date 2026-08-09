@@ -1,0 +1,4 @@
+<a href="{{ route('landing') }}" class="brand" aria-label="Qast — accueil">
+    <svg class="brand-mark" viewBox="0 0 1000 1000" width="{{ $size ?? 34 }}" height="{{ $size ?? 34 }}" aria-hidden="true"><g><path d="M 190.0,0 H 810.0 A 190.0,190.0 0 0 1 1000.0,190.0 V 810.0 A 190.0,190.0 0 0 1 810.0,1000.0 H 190.0 A 190.0,190.0 0 0 1 0,810.0 V 190.0 A 190.0,190.0 0 0 1 190.0,0 Z" fill="var(--ink)"/><rect x="220" y="220" width="560" height="560" rx="96" fill="var(--accent)"/><rect x="300" y="300" width="400" height="400" rx="64" fill="var(--bg)"/><rect x="380" y="380" width="240" height="240" rx="48" fill="var(--accent)"/><rect x="808" y="300" width="76" height="76" rx="22" fill="var(--accent)"/><rect x="890" y="250" width="54" height="54" rx="16" fill="var(--accent)"/><rect x="948" y="214" width="32" height="32" rx="10" fill="var(--accent)"/></g></svg>
+    <span class="brand-name">Qa<span class="brand-accent">st</span></span>
+</a>

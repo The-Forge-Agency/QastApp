@@ -1,0 +1,34 @@
+{
+    "name": "Qast — D'un écran à l'autre, sans réseau",
+    "short_name": "Qast",
+    "description": "Fais passer un fichier d'un appareil à l'autre en QR codes animés. Sans wifi, sans Bluetooth, sans serveur, sans compte. 100% hors-ligne.",
+    "id": "/app",
+    "start_url": "/app",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#0C0A12",
+    "theme_color": "#0C0A12",
+    "lang": "fr",
+    "categories": ["utilities", "productivity"],
+    "icons": [
+        {
+            "src": "/icons/favicon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/favicon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/icons/favicon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
