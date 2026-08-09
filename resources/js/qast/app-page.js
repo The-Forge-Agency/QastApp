@@ -6,7 +6,7 @@ import { LTDecoder } from './lt.js';
 import { decodePacket, buildPayload, parsePayload } from './packet.js';
 
 const SOFT_LIMIT = 100 * 1024;
-const HARD_LIMIT = 2 * 1024 * 1024;
+const HARD_LIMIT = 5 * 1024 * 1024;
 const SINGLE_QR_TEXT_MAX = 700;
 const SINGLE_QR_LINK_MAX = 1200;
 
@@ -39,11 +39,12 @@ export function initAppPage() {
         result: null,
         resultUrl: null,
         videoUrl: null,
+        packetTimes: [],
     };
 
     const settings = {
         density: localStorage.getItem('qast.density') || 'auto',
-        fps: parseInt(localStorage.getItem('qast.fps') || '8', 10),
+        fps: parseInt(localStorage.getItem('qast.fps') || '10', 10),
     };
 
     /* ---------- Utilitaires ---------- */
@@ -137,7 +138,8 @@ export function initAppPage() {
         if (settings.density !== 'auto') return settings.density;
         if (byteLength <= 2 * 1024) return 's';
         if (byteLength <= 60 * 1024) return 'm';
-        return 'l';
+        if (byteLength <= 300 * 1024) return 'l';
+        return 'xl';
     }
 
     function refreshGauge() {
@@ -179,7 +181,11 @@ export function initAppPage() {
         if (size > SOFT_LIMIT) {
             const density = densityFor(size);
             const estimate = estimateTransfer(size, density, settings.fps);
-            warn.textContent = `Au-delà de ${fmtBytes(SOFT_LIMIT)}, ça devient long (${fmtDuration(estimate.seconds)}). Conseils : réduis l'image, compresse en zip, ou coupe en morceaux.`;
+            const best = estimateTransfer(size, 'xl', 30);
+            const tip = estimate.seconds > best.seconds * 1.2
+                ? ` En densité XL à 30 i/s : ${fmtDuration(best.seconds)} — il faut un écran net, stable, et une bonne caméra.`
+                : ' Écrans propres et stables, plein écran conseillé.';
+            warn.textContent = `Au-delà de ${fmtBytes(SOFT_LIMIT)}, ça prend du temps (${fmtDuration(estimate.seconds)} avec tes réglages).${tip}`;
             warn.hidden = false;
         } else {
             warn.hidden = true;
@@ -292,10 +298,11 @@ export function initAppPage() {
 
     function startBroadcast(payloadBytes, densityKey) {
         state.broadcaster?.stop();
-        const { blockSize } = DENSITIES[densityKey];
+        const { blockSize, width } = DENSITIES[densityKey];
         state.broadcaster = new Broadcaster($('stage-canvas'), payloadBytes, {
             blockSize,
             fps: settings.fps,
+            width,
         });
         state.broadcaster.start();
         $('stage-mode').textContent = 'QR animés';
@@ -373,17 +380,31 @@ export function initAppPage() {
         }
     });
 
+    $('stage-turbo').addEventListener('click', () => {
+        settings.fps = 30;
+        localStorage.setItem('qast.fps', '30');
+        for (const [slider, label] of [['stage-fps', 'stage-fps-value'], ['fps', 'fps-value']]) {
+            $(slider).value = '30';
+            $(label).textContent = '30 i/s';
+        }
+        $('stage-density').value = 'xl';
+        if (state.stagePayload) startBroadcast(state.stagePayload, 'xl');
+        toast('Turbo : rapproche bien la caméra de l\'écran');
+    });
+
     /* ---------- Récepteur ---------- */
 
     function resetReception() {
         state.decoder = null;
         state.transferId = null;
         state.packetsSeen = 0;
+        state.packetTimes = [];
         $('rx-percent').textContent = 'en attente…';
         $('rx-bar').style.width = '0%';
         $('rx-bar').classList.remove('is-done');
         $('rx-blocks').textContent = '—';
         $('rx-packets').textContent = '0 paquet capté';
+        $('rx-hint').hidden = true;
     }
 
     function updateProgress() {
@@ -393,7 +414,22 @@ export function initAppPage() {
         $('rx-percent').textContent = `${percent} %`;
         $('rx-bar').style.width = `${percent}%`;
         $('rx-blocks').textContent = `${decoder.decodedCount}/${decoder.k} blocs · manque ${decoder.k - decoder.decodedCount}`;
-        $('rx-packets').textContent = `${state.packetsSeen} paquets captés`;
+
+        const now = performance.now();
+        state.packetTimes = state.packetTimes.filter((t) => now - t < 3000);
+        const rate = state.packetTimes.length / 3;
+        $('rx-packets').textContent = `${state.packetsSeen} paquets · ${rate.toFixed(1)} QR/s`;
+
+        const hint = $('rx-hint');
+        if (state.packetsSeen > 5 && rate < 3) {
+            hint.textContent = 'Débit faible : rapproche la caméra, stabilise, vérifie la netteté.';
+            hint.hidden = false;
+        } else if (rate >= 8) {
+            hint.textContent = 'Excellent débit — tu peux monter la vitesse ou la densité côté émetteur.';
+            hint.hidden = false;
+        } else {
+            hint.hidden = true;
+        }
     }
 
     let reticleTimer = null;
@@ -432,6 +468,7 @@ export function initAppPage() {
         }
 
         state.packetsSeen++;
+        state.packetTimes.push(performance.now());
         state.decoder.addPacket(packet.ptype, packet.seed, packet.data);
         updateProgress();
 

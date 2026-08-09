@@ -27,9 +27,13 @@ if (page === 'app') initAppPage();
 if (page === 'landing') initLanding();
 
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
+    window.addEventListener('load', async () => {
+        try {
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            const { watchOfflineReady } = await import('./qast/offline-ready.js');
+            watchOfflineReady(registration);
+        } catch {
             // Offline mode will simply be unavailable; the app still works.
-        });
+        }
     });
 }

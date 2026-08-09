@@ -3,12 +3,13 @@ import { LTEncoder } from './lt.js';
 import { encodePacket, PTYPE_LT, PTYPE_SYSTEMATIC } from './packet.js';
 
 export const DENSITIES = {
-    s: { blockSize: 96, label: 'S · caméra faible' },
-    m: { blockSize: 220, label: 'M · équilibré' },
-    l: { blockSize: 420, label: 'L · caméra proche' },
+    s: { blockSize: 96, width: 640 },
+    m: { blockSize: 220, width: 640 },
+    l: { blockSize: 420, width: 720 },
+    xl: { blockSize: 1000, width: 840 },
 };
 
-export const REDUNDANCY = 1.7;
+export const REDUNDANCY = 1.5;
 
 export function estimateTransfer(byteLength, densityKey, fps) {
     const { blockSize } = DENSITIES[densityKey];

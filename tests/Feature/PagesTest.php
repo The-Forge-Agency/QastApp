@@ -19,7 +19,7 @@ it('serves the app page with sender and receiver panels', function () {
         ->assertSee('Ouvrir la caméra', false)
         ->assertSee('Importer une vidéo', false)
         ->assertSee('Formats acceptés', false)
-        ->assertSee('max 2 Mo', false);
+        ->assertSee('max 5 Mo', false);
 });
 
 it('serves the service worker as cache-first javascript', function () {

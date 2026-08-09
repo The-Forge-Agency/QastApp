@@ -50,8 +50,8 @@ export class Scanner {
         this.stop();
 
         const video = deviceId
-            ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-            : { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } };
+            ? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+            : { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } };
 
         this.stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
         this.video.srcObject = this.stream;
@@ -117,7 +117,7 @@ export class Scanner {
         const videoHeight = this.video.videoHeight;
         if (!videoWidth || !videoHeight) return null;
 
-        const scale = Math.min(1, 640 / videoWidth);
+        const scale = Math.min(1, 800 / videoWidth);
         const width = Math.round(videoWidth * scale);
         const height = Math.round(videoHeight * scale);
 
