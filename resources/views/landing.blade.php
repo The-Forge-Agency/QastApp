@@ -23,8 +23,8 @@
                 que l'autre caméra filme. Ni wifi, ni Bluetooth, ni serveur, ni compte.
             </p>
             <div class="flex flex-col sm:flex-row gap-3 justify-center mt-8">
-                <a href="{{ route('app') }}" class="btn btn-primary">Envoyer quelque chose</a>
-                <a href="{{ route('app') }}" class="btn">Recevoir avec la caméra</a>
+                <a href="{{ route('app') }}#envoyer" class="btn btn-primary">Envoyer quelque chose</a>
+                <a href="{{ route('app') }}#recevoir" class="btn">Recevoir avec la caméra</a>
             </div>
             <p class="muted text-sm mt-4">Zéro compte · gratuit · open source</p>
         </section>

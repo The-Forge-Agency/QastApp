@@ -749,5 +749,7 @@ export function initAppPage() {
         state.scanner?.stop();
     });
 
+    if (location.hash === '#recevoir') selectMode('receive');
+
     refreshGauge();
 }
