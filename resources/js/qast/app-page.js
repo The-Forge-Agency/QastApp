@@ -6,7 +6,9 @@ import { LTDecoder } from './lt.js';
 import { decodePacket, buildPayload, parsePayload } from './packet.js';
 
 const SOFT_LIMIT = 100 * 1024;
-const HARD_LIMIT = 5 * 1024 * 1024;
+const HARD_LIMIT = 25 * 1024 * 1024;
+// k is a uint16 in the packet header: keep a margin under 65535 blocks.
+const MAX_BLOCKS = 60000;
 const SINGLE_QR_TEXT_MAX = 700;
 const SINGLE_QR_LINK_MAX = 1200;
 
@@ -135,11 +137,22 @@ export function initAppPage() {
     }
 
     function densityFor(byteLength) {
-        if (settings.density !== 'auto') return settings.density;
-        if (byteLength <= 2 * 1024) return 's';
-        if (byteLength <= 60 * 1024) return 'm';
-        if (byteLength <= 300 * 1024) return 'l';
-        return 'xl';
+        let key = settings.density;
+
+        if (key === 'auto') {
+            if (byteLength <= 2 * 1024) key = 's';
+            else if (byteLength <= 60 * 1024) key = 'm';
+            else if (byteLength <= 300 * 1024) key = 'l';
+            else key = 'xl';
+        }
+
+        // Big payloads need big blocks to stay under the block-count cap.
+        const minBlock = Math.ceil(byteLength / MAX_BLOCKS);
+        if (DENSITIES[key].blockSize < minBlock) {
+            key = Object.keys(DENSITIES).find((k) => DENSITIES[k].blockSize >= minBlock) ?? 'xl';
+        }
+
+        return key;
     }
 
     function refreshGauge() {
@@ -298,6 +311,12 @@ export function initAppPage() {
 
     function startBroadcast(payloadBytes, densityKey) {
         state.broadcaster?.stop();
+        const minBlock = Math.ceil(payloadBytes.length / MAX_BLOCKS);
+        if (DENSITIES[densityKey].blockSize < minBlock) {
+            densityKey = Object.keys(DENSITIES).find((k) => DENSITIES[k].blockSize >= minBlock) ?? 'xl';
+            $('stage-density').value = densityKey;
+            toast('Fichier volumineux : densité augmentée automatiquement');
+        }
         const { blockSize, width } = DENSITIES[densityKey];
         state.broadcaster = new Broadcaster($('stage-canvas'), payloadBytes, {
             blockSize,

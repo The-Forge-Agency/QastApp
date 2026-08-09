@@ -40,7 +40,7 @@
                         <svg class="mx-auto mb-3" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
                         <p class="font-semibold">Dépose un fichier ici</p>
                         <p class="muted text-sm mt-1">ou touche pour choisir · tous les formats</p>
-                        <p class="muted text-xs mt-2 mono">idéal &lt; 100 Ko · max 5 Mo</p>
+                        <p class="muted text-xs mt-2 mono">idéal &lt; 100 Ko · max 25 Mo</p>
                     </div>
                     <input type="file" id="file-input" class="sr-only" aria-label="Fichier à envoyer">
                     <div id="file-card" class="card mt-3 p-4 flex items-center gap-3" hidden>
@@ -106,9 +106,9 @@
             <details class="card mt-4 p-4">
                 <summary class="text-sm font-semibold cursor-pointer" style="color: var(--accent);">Formats acceptés &amp; limites</summary>
                 <div class="mt-3 text-sm muted leading-relaxed">
-                    <p><strong style="color: var(--ink);">Fichier</strong> — tous les formats sans exception : image (jpg, png, webp, gif, svg…), PDF, zip, audio, texte, binaire… Limite dure : <span class="mono">5 Mo</span>. Idéal : <span class="mono">&lt; 100 Ko</span> pour un transfert en quelques secondes.</p>
+                    <p><strong style="color: var(--ink);">Fichier</strong> — tous les formats sans exception : image (jpg, png, webp, gif, svg…), PDF, zip, audio, texte, binaire… Limite dure : <span class="mono">25 Mo</span> (compte ~20 min en Turbo). Idéal : <span class="mono">&lt; 100 Ko</span> pour un transfert en quelques secondes.</p>
                     <p class="mt-2"><strong style="color: var(--ink);">Image</strong> — détectée automatiquement, aperçu miniature à la réception. Pense à compresser ou réduire avant d'envoyer une photo.</p>
-                    <p class="mt-2"><strong style="color: var(--ink);">Texte &amp; Markdown</strong> — jusqu'à 5 Mo. Sous ~700 caractères, un seul QR statique suffit : scannable par n'importe quelle appli caméra.</p>
+                    <p class="mt-2"><strong style="color: var(--ink);">Texte &amp; Markdown</strong> — jusqu'à 25 Mo. Sous ~700 caractères, un seul QR statique suffit : scannable par n'importe quelle appli caméra.</p>
                     <p class="mt-2"><strong style="color: var(--ink);">Lien</strong> — toute URL http(s) jusqu'à 1 200 caractères, toujours en QR statique instantané.</p>
                     <p class="mt-2"><strong style="color: var(--ink);">Débit &amp; réglages</strong> — un écran filmé transporte d'environ <span class="mono">1 Ko/s</span> (S, 8 i/s) à <span class="mono">~20 Ko/s</span> (XL, 30 i/s). Pour un gros fichier : densité XL, vitesse au max, plein écran, écrans nets et stables, caméra bien cadrée. La jauge ci-dessus affiche poids et durée estimée avec tes réglages. Les frames ratées ne coûtent rien : les fountain codes les rattrapent.</p>
                 </div>

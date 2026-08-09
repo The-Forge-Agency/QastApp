@@ -27,6 +27,17 @@ if (page === 'app') initAppPage();
 if (page === 'landing') initLanding();
 
 if ('serviceWorker' in navigator) {
+    // When an updated service worker takes over, reload once so the page
+    // never keeps running a stale cached bundle. First install (no
+    // previous controller) is exempt: it would wipe the celebration.
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController && !window.__qastReloaded) {
+            window.__qastReloaded = true;
+            window.location.reload();
+        }
+    });
+
     window.addEventListener('load', async () => {
         try {
             const registration = await navigator.serviceWorker.register('/sw.js');
